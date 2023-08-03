@@ -52,6 +52,9 @@ def send_otp():
     otp = hotp.at(otp_counter)
     send_otp_email(recipient_email, otp)
 
+    # Store the otp_counter in the session
+    session['otp_counter'] = otp_counter
+
     return jsonify({'message': 'OTP sent successfully'}), 200
 
 @app.route('/verify-otp', methods=['POST'])
@@ -69,6 +72,9 @@ def verify_otp():
 
     otp_secret = otp_secrets[recipient_email]
     hotp = pyotp.HOTP(otp_secret)
+
+    # Retrieve otp_counter from the session
+    otp_counter = session.get('otp_counter')
 
     # For verification, manually check multiple OTPs in the window
     window = 3  # Adjust the window size based on your requirements
@@ -93,9 +99,12 @@ def resend_otp():
 
     otp_secret = otp_secrets[recipient_email]
     hotp = pyotp.HOTP(otp_secret)
-    otp_counter = hotp.counter + 1  # Increment the counter for resend
+    otp_counter = session.get('otp_counter', 0)  # Get the otp_counter from the session or set to 0 if not present
     otp = hotp.at(otp_counter)
     send_otp_email(recipient_email, otp)
+
+    # Update the otp_counter in the session
+    session['otp_counter'] = otp_counter
 
     return jsonify({'message': 'New OTP sent successfully'}), 200
 
