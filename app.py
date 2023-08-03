@@ -5,10 +5,9 @@ from email.mime.text import MIMEText
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
-otp_secrets={}
+otp_secrets = {}
 
 def send_otp_email(recipient_email, otp):
-
     sender_email = os.environ.get('SENDER_EMAIL')  # Replace with your environment variable name for sender email
     sender_password = os.environ.get('SENDER_PASSWORD')
     
@@ -47,9 +46,10 @@ def send_otp():
     else:
         otp_secret = otp_secrets[recipient_email]
 
-    # Use TOTP instead of HOTP for sending OTP via email
-    totp = pyotp.TOTP(otp_secret)
-    otp = totp.now()
+    # Use HOTP for sending OTP via email
+    hotp = pyotp.HOTP(otp_secret)
+    otp_counter = 0  # Set the initial counter value
+    otp = hotp.at(otp_counter)
     send_otp_email(recipient_email, otp)
 
     return jsonify({'message': 'OTP sent successfully'}), 200
@@ -68,10 +68,14 @@ def verify_otp():
         return jsonify({'error': 'OTP secret not found. Send OTP first using /send-otp.'}), 400
 
     otp_secret = otp_secrets[recipient_email]
-    totp = pyotp.TOTP(otp_secret)
+    hotp = pyotp.HOTP(otp_secret)
 
-    if totp.verify(user_input_otp):
-        return jsonify({'message': 'OTP verification successful'}), 200
+    # For verification, manually check multiple OTPs in the window
+    window = 3  # Adjust the window size based on your requirements
+
+    for i in range(otp_counter, otp_counter + window + 1):
+        if hotp.verify(user_input_otp, i):
+            return jsonify({'message': 'OTP verification successful'}), 200
 
     return jsonify({'error': 'OTP verification failed'}), 401
 
@@ -88,8 +92,9 @@ def resend_otp():
         return jsonify({'error': 'OTP secret not found. Send OTP first using /send-otp.'}), 400
 
     otp_secret = otp_secrets[recipient_email]
-    totp = pyotp.TOTP(otp_secret)
-    otp = totp.now()
+    hotp = pyotp.HOTP(otp_secret)
+    otp_counter = hotp.counter + 1  # Increment the counter for resend
+    otp = hotp.at(otp_counter)
     send_otp_email(recipient_email, otp)
 
     return jsonify({'message': 'New OTP sent successfully'}), 200
