@@ -2,7 +2,7 @@ import smtplib
 import os
 import pyotp
 from email.mime.text import MIMEText
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 
 app = Flask(__name__)
 otp_secrets = {}
