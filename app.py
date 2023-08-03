@@ -75,5 +75,24 @@ def verify_otp():
 
     return jsonify({'error': 'OTP verification failed'}), 401
 
+@app.route('/resend-otp', methods=['POST'])
+def resend_otp():
+    data = request.get_json()
+    recipient_email = data.get('email')
+
+    if not recipient_email:
+        return jsonify({'error': 'Email is missing'}), 400
+
+    # Check if OTP secret for the email exists
+    if recipient_email not in otp_secrets:
+        return jsonify({'error': 'OTP secret not found. Send OTP first using /send-otp.'}), 400
+
+    otp_secret = otp_secrets[recipient_email]
+    totp = pyotp.TOTP(otp_secret)
+    otp = totp.now()
+    send_otp_email(recipient_email, otp)
+
+    return jsonify({'message': 'New OTP sent successfully'}), 200
+
 if __name__ == '__main__':
     app.run(debug=True)
